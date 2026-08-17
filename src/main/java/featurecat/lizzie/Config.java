@@ -614,6 +614,14 @@ public class Config {
   public boolean showPonderLimitedTips = true;
   public int foxAfterGet = 0; // 0=最小化,1=关闭,2=无动作
   public String lastFoxName = "";
+  /** The last target account whose games the user browsed (searched by UID). */
+  public String lastFoxSearchUser = "";
+  /** Manually captured FoxWQ credentials (token + session), persisted for reuse. */
+  public String lastFoxToken = "";
+
+  public String lastFoxSession = "";
+  /** MD5 of the last FoxWQ password used (only the hash is stored, never plaintext). */
+  public String lastFoxPasswordMd5 = "";
 
   public boolean continueWithBestMove = false;
   public boolean directlyWithBestMove = true;
@@ -1381,6 +1389,10 @@ public class Config {
     showPonderLimitedTips = uiConfig.optBoolean("show-ponder-limited-tips", true);
     foxAfterGet = uiConfig.optInt("fox-after-get", 0);
     lastFoxName = uiConfig.optString("last-fox-name", "");
+    lastFoxSearchUser = uiConfig.optString("last-fox-search-user", "");
+    lastFoxToken = uiConfig.optString("last-fox-token", "");
+    lastFoxSession = uiConfig.optString("last-fox-session", "");
+    lastFoxPasswordMd5 = uiConfig.optString("last-fox-password-md5", "");
     continueWithBestMove = uiConfig.optBoolean("continue-with-best-move", false);
     directlyWithBestMove = uiConfig.optBoolean("directly-with-best-move", false);
     delayShowCandidates = uiConfig.optBoolean("delay-show-candidates", false);

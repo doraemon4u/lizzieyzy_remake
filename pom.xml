@@ -12,6 +12,7 @@
 		<!-- Prevent warning: "[WARNING] Using platform encoding (UTF-8 actually) 
 			to copy filtered resources, i.e. build is platform dependent!" -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
 
 	<build>
@@ -19,10 +20,11 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.8.1</version>
+				<version>3.13.0</version>
 				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
+					<!-- Phase 2: build to Java 17 bytecode (LTS) to pair with JCEF 135 and
+					     unlock JDK 17 runtime features. JDK 21/26 can still compile this. -->
+					<release>17</release>
 					<compilerArgs>
 						<arg>-Xlint:all</arg>
 					</compilerArgs>
@@ -38,7 +40,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.1.0</version>
+				<version>3.6.0</version>
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -60,11 +62,10 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.9</version>
+				<version>3.2.5</version>
 				<configuration>
 					<!-- Required to get the test failure reports in stdout -->
 					<useFile>false</useFile>
-					<skip>true</skip>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -126,32 +127,23 @@
 			<version>20180130</version>
 		</dependency>
 
+		<!-- Phase 2: JCEF upgraded from 95 (2021, no arm64) to 135 (chromium-135). -->
 		<dependency>
 			<groupId>me.friwi</groupId>
 			<artifactId>jcefmaven</artifactId>
-			<version>95.7.14.11</version>
+			<version>135.0.20</version>
 		</dependency>
 
-		<!-- <dependency> <groupId>me.friwi</groupId> <artifactId>jcef-natives-windows-amd64</artifactId> 
-			<version>jcef-a51ff7f+cef-95.7.14+g9f72f35+chromium-95.0.4638.69</version> 
-			</dependency> -->
+		<!-- JCEF natives are per-platform (see <profiles> below). Bundle only the local
+		     platform's Chromium via e.g. -Pnative-macosx-arm64 to keep the fat jar small.
+		     Without a profile jcefmaven downloads the current platform's natives on first run. -->
 
-		<!-- <dependency> <groupId>me.friwi</groupId> <artifactId>jcef-natives-windows-i386</artifactId> 
-			<version>jcef-a51ff7f+cef-95.7.14+g9f72f35+chromium-95.0.4638.69</version> 
-			</dependency> -->
-
-		<!-- <dependency> <groupId>me.friwi</groupId> <artifactId>jcef-natives-linux-amd64</artifactId> 
-			<version>jcef-a51ff7f+cef-95.7.14+g9f72f35+chromium-95.0.4638.69</version> 
-			</dependency> -->
-
-		<!-- <dependency> <groupId>me.friwi</groupId> <artifactId>jcef-natives-macosx-amd64</artifactId> 
-			<version>jcef-a51ff7f+cef-95.7.14+g9f72f35+chromium-95.0.4638.69</version> 
-			</dependency> -->
-
+		<!-- Phase 2: maintained JSch fork replaces deprecated ganymed-ssh2 (2011, ssh-rsa
+			 rejected by modern OpenSSH). com.github.mwiede:jsch supports modern key algs. -->
 		<dependency>
-			<groupId>ch.ethz.ganymed</groupId>
-			<artifactId>ganymed-ssh2</artifactId>
-			<version>build210</version>
+			<groupId>com.github.mwiede</groupId>
+			<artifactId>jsch</artifactId>
+			<version>2.28.6</version>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/org.swinglabs.swingx/swingx-core -->
@@ -188,4 +180,50 @@
 		</dependency>
 
 	</dependencies>
+
+	<!-- Per-platform JCEF natives profiles: build with e.g. -Pnative-macosx-arm64 to bundle only
+	     the local Chrome/CEF natives into the fat jar (offline-capable). Without a profile,
+	     jcefmaven downloads the current platform's natives automatically on the first launch. -->
+	<profiles>
+		<profile>
+			<id>native-windows-amd64</id>
+			<dependencies>
+				<dependency>
+					<groupId>me.friwi</groupId>
+					<artifactId>jcef-natives-windows-amd64</artifactId>
+					<version>jcef-ca49ada+cef-135.0.20+ge7de5c3+chromium-135.0.7049.85</version>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>native-linux-amd64</id>
+			<dependencies>
+				<dependency>
+					<groupId>me.friwi</groupId>
+					<artifactId>jcef-natives-linux-amd64</artifactId>
+					<version>jcef-ca49ada+cef-135.0.20+ge7de5c3+chromium-135.0.7049.85</version>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>native-macosx-amd64</id>
+			<dependencies>
+				<dependency>
+					<groupId>me.friwi</groupId>
+					<artifactId>jcef-natives-macosx-amd64</artifactId>
+					<version>jcef-ca49ada+cef-135.0.20+ge7de5c3+chromium-135.0.7049.85</version>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>native-macosx-arm64</id>
+			<dependencies>
+				<dependency>
+					<groupId>me.friwi</groupId>
+					<artifactId>jcef-natives-macosx-arm64</artifactId>
+					<version>jcef-ca49ada+cef-135.0.20+ge7de5c3+chromium-135.0.7049.85</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

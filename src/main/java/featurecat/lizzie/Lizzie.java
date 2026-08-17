@@ -82,11 +82,20 @@ public class Lizzie {
     // System.setProperty("sun.java2d.uiScale.enabled", "false");
     // -Dsun.java2d.uiScale=1.0
     javaVersionString = System.getProperty("java.version");
+    // Robust parse: JDK 8 -> "1.8.0_..", JDK 9+ -> "17.0.x", JDK 20+ -> "20.x"
     try {
-      javaVersion =
-          Math.max(
-              8, Integer.parseInt(javaVersionString.substring(0, javaVersionString.indexOf('.'))));
+      String v = javaVersionString;
+      if (v != null && v.startsWith("1.")) {
+        int dot = v.indexOf('.', 2);
+        javaVersion = Integer.parseInt(v.substring(2, dot > 0 ? dot : v.length()));
+      } else if (v != null) {
+        int dot = v.indexOf('.');
+        javaVersion =
+            Integer.parseInt(v.substring(0, dot > 0 ? dot : v.length()).replaceAll("[^0-9]", ""));
+      }
+      javaVersion = Math.max(8, javaVersion);
     } catch (Exception e) {
+      // fall back to 8
     }
     System.out.println("java version:" + javaVersionString);
     leelaz = new Leelaz("");

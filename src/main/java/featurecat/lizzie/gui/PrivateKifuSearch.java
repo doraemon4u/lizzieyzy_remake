@@ -403,7 +403,7 @@ public class PrivateKifuSearch extends JFrame {
             SocketKifuSearch socketKifuSearch = new SocketKifuSearch();
             List<String> sqlResult = socketKifuSearch.SocketKifuSearch(sqlText);
             // 获得列数
-            if (sqlResult != null) {
+            if (sqlResult != null && !sqlResult.isEmpty()) {
               String[] params = sqlResult.get(0).split(">->");
               model = new DefaultTableModel();
               table.setModel(model);
@@ -450,6 +450,10 @@ public class PrivateKifuSearch extends JFrame {
               }
               lbl_tab.setText("1/" + tabNumber);
               table.updateUI();
+            } else {
+              // Service returned nothing (server down / empty result).
+              Utils.showMsg(
+                  Lizzie.resourceBundle.getString("Socket.connectFailed"), PrivateKifuSearch.this);
             }
           }
         });

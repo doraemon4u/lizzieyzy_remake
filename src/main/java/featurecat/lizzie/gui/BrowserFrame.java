@@ -39,6 +39,8 @@ public class BrowserFrame extends JFrame {
   private boolean browserFocus_ = true;
   private JToolBar toolbar;
   private boolean isYike;
+  /** Last URL we forwarded to the online-sync dialog (dedupe address-change events). */
+  private String lastSyncedUrl = "";
   /**
    * To display a simple browser window, it suffices completely to create an instance of the class
    * CefBrowser and to assign its UI component to your application (e.g. to your content pane). But
@@ -180,6 +182,16 @@ public class BrowserFrame extends JFrame {
           @Override
           public void onAddressChange(CefBrowser browser, CefFrame frame, String url) {
             address_.setText(url);
+            // Yike SPA uses in-page Vue routing, so the URL changes in place (no popup).
+            // Trigger the online sync whenever the address actually changes to a new value.
+            if (isYike && url != null && !url.equals(lastSyncedUrl)) {
+              lastSyncedUrl = url;
+              try {
+                Lizzie.frame.syncOnline(url);
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+            }
           }
         });
 

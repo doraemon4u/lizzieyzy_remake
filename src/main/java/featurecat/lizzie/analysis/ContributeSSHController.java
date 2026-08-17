@@ -1,7 +1,8 @@
 package featurecat.lizzie.analysis;
 
-import ch.ethz.ssh2.Connection;
-import ch.ethz.ssh2.Session;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.util.Utils;
 import java.io.File;
@@ -10,9 +11,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.json.JSONException;
 
+/**
+ * Remote ContributeEngine over SSH. Migrated from deprecated ganymed-ssh2 to the maintained JSch
+ * fork (com.github.mwiede:jsch); public method names unchanged.
+ */
 public class ContributeSSHController {
-  private Connection conn;
   private Session session;
+  private ChannelExec channel;
   private RemoteConnect newConnect;
   private ContributeEngine owner;
 
@@ -26,17 +31,12 @@ public class ContributeSSHController {
   public Boolean login(String command, String userName, String password) {
     boolean flag = false;
     try {
-      this.conn = new Connection(this.newConnect.getIp(), this.newConnect.getPort());
-      this.conn.connect(null, 3000, 3000);
-      flag = this.conn.authenticateWithPassword(userName, Utils.doDecrypt(password));
-      if (flag) {
-        this.session = this.conn.openSession();
-        this.session.execCommand(command);
-      } else {
+      flag = openChannel(command, userName, null, Utils.doDecrypt(password));
+      if (!flag) {
         Utils.showMsg(Lizzie.resourceBundle.getString("SSHController.connectFailed"));
-        this.conn.close();
+        close();
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
       e.printStackTrace();
       String err = e.getLocalizedMessage();
       try {
@@ -56,15 +56,10 @@ public class ContributeSSHController {
   public Boolean loginByFileKey(String command, String userName, File keyFile) {
     boolean flag = false;
     try {
-      this.conn = new Connection(this.newConnect.getIp());
-      this.conn.connect(null, 3000, 3000);
-      flag = this.conn.authenticateWithPublicKey(userName, keyFile, null);
-      if (flag) {
-        this.session = this.conn.openSession();
-        this.session.execCommand(command);
-      } else {
+      flag = openChannel(command, userName, keyFile, null);
+      if (!flag) {
         Utils.showMsg(Lizzie.resourceBundle.getString("SSHController.connectFailed"));
-        this.conn.close();
+        close();
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -83,22 +78,52 @@ public class ContributeSSHController {
     return Boolean.valueOf(flag);
   }
 
+  private boolean openChannel(String command, String userName, File keyFile, String password)
+      throws Exception {
+    JSch jsch = new JSch();
+    if (keyFile != null) jsch.addIdentity(keyFile.getAbsolutePath());
+    int port = newConnect.getPort();
+    this.session = jsch.getSession(userName, newConnect.getIp(), port);
+    this.session.setConfig("StrictHostKeyChecking", "no");
+    this.session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
+    if (password != null) this.session.setPassword(password);
+    this.session.connect(3000);
+    this.channel = (ChannelExec) this.session.openChannel("exec");
+    this.channel.setCommand(command);
+    this.channel.connect(3000);
+    return true;
+  }
+
   public void close() {
     owner.javaSSHClosed = true;
-    // owner.isNormalEnd = true;
-    if (this.session != null) this.session.close();
-    if (this.conn != null) this.conn.close();
+    if (channel != null) channel.disconnect();
+    if (session != null) session.disconnect();
   }
 
   public InputStream getStdout() {
-    return this.session.getStdout();
+    try {
+      return channel == null ? null : channel.getInputStream();
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   public InputStream getSterr() {
-    return this.session.getStderr();
+    try {
+      return channel == null ? null : channel.getErrStream();
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   public OutputStream getStdin() {
-    return this.session.getStdin();
+    try {
+      return channel == null ? null : channel.getOutputStream();
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 }

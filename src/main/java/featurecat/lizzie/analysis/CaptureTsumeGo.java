@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.swing.JFrame;
-import org.jdesktop.swingx.util.OS;
 
 public class CaptureTsumeGo {
   private Process process;
@@ -52,82 +51,15 @@ public class CaptureTsumeGo {
     if (!jarFile.exists()) Utils.copyCaptureTsumeGo();
     boolean success = false;
     try {
-      if (OS.isWindows()) {
-        File java64_1 = new File(Utils.java64Path1);
-        if (java64_1.exists()) {
-          try {
-            process =
-                Runtime.getRuntime()
-                    .exec(
-                        Utils.java64Path1
-                            + " -Dsun.java2d.uiScale=1.0 -jar captureTsumeGo"
-                            + File.separator
-                            + jarName
-                            + params);
-            success = true;
-          } catch (Exception e) {
-            success = false;
-            e.printStackTrace();
-          }
-        }
-        if (!success) {
-          File java64_2 = new File(Utils.java64Path2);
-          if (java64_2.exists()) {
-            try {
-              process =
-                  Runtime.getRuntime()
-                      .exec(
-                          Utils.java64Path2
-                              + " -Dsun.java2d.uiScale=1.0 -jar captureTsumeGo"
-                              + File.separator
-                              + jarName
-                              + params);
-              success = true;
-            } catch (Exception e) {
-              success = false;
-              e.printStackTrace();
-            }
-          }
-        }
-        if (!success) {
-          File java32 = new File(Utils.java32Path);
-          if (java32.exists()) {
-            try {
-              process =
-                  Runtime.getRuntime()
-                      .exec(
-                          Utils.java32Path
-                              + " -Dsun.java2d.uiScale=1.0 -jar captureTsumeGo"
-                              + File.separator
-                              + jarName
-                              + params);
-              success = true;
-            } catch (Exception e) {
-              success = false;
-              e.printStackTrace();
-            }
-          }
-        }
-        if (!success) {
-          process =
-              Runtime.getRuntime()
-                  .exec(
-                      "java -Dsun.java2d.uiScale=1.0 -jar captureTsumeGo"
-                          + File.separator
-                          + jarName
-                          + params);
-          success = true;
-        }
-      } else {
-        process =
-            Runtime.getRuntime()
-                .exec(
-                    "java -Dsun.java2d.uiScale=1.0 -jar captureTsumeGo"
-                        + File.separator
-                        + jarName
-                        + params);
-        success = true;
-      }
+      process =
+          Runtime.getRuntime()
+              .exec(
+                  Utils.findJavaCommand()
+                      + " -Dsun.java2d.uiScale=1.0 -jar captureTsumeGo"
+                      + File.separator
+                      + jarName
+                      + params);
+      success = true;
     } catch (Exception e) {
       success = false;
       Utils.showMsg(e.getLocalizedMessage());

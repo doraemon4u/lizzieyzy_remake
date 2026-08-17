@@ -66,6 +66,33 @@ public class Utils {
   private static int msemaphoretryroom = 1;
   private static boolean alertedNoByoyomiSoundFile = false;
 
+  /**
+   * Locate a usable java launcher for sub-process jar start. Prefers the JVM that is currently
+   * running lizzie (java.home -> bin/java), which is the most reliable and works on all platforms
+   * and standard JDK installs. Falls back to the legacy bundled jre directories on Windows.
+   *
+   * @return absolute path of a java executable, or "java" as last resort.
+   */
+  public static String findJavaCommand() {
+    String separator = File.separator;
+    String exe =
+        System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java";
+    String javaHome = System.getProperty("java.home");
+    if (javaHome != null && !javaHome.isEmpty()) {
+      String candidate = javaHome + separator + "bin" + separator + exe;
+      if (new File(candidate).exists()) {
+        return candidate;
+      }
+    }
+    // Windows legacy bundled JRE fallbacks
+    if (System.getProperty("os.name", "").toLowerCase().contains("win")) {
+      for (String p : new String[] {java64Path1, java64Path2, java32Path}) {
+        if (new File(p).exists()) return p;
+      }
+    }
+    return "java";
+  }
+
   public static void ajustScale(Graphics g) {
     if (Lizzie.isMultiScreen) {
       final Graphics2D g0 = (Graphics2D) g;

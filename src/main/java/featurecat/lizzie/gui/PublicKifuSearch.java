@@ -419,7 +419,7 @@ public class PublicKifuSearch extends JFrame {
             //    rs = sql.executeQuery(sqlText);
             //    ResultSetMetaData rsmd = rs.getMetaData();
             // 获得列数
-            if (sqlResult != null) {
+            if (sqlResult != null && !sqlResult.isEmpty()) {
               model = new DefaultTableModel();
               table.setModel(model);
               String[] params = sqlResult.get(0).split(">->");
@@ -460,6 +460,10 @@ public class PublicKifuSearch extends JFrame {
               }
               lbl_tab.setText("1/" + tabNumber);
               table.updateUI();
+            } else {
+              // Service returned nothing (server down / empty result).
+              Utils.showMsg(
+                  Lizzie.resourceBundle.getString("Socket.connectFailed"), PublicKifuSearch.this);
             }
           }
         });

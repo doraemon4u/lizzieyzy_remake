@@ -28,6 +28,12 @@ public class SocketKifuSearch {
     try {
       // 客户端socket指定服务器的地址和端口号121.36.229.204
       socket = new Socket("lizzieyzy.cn", 3285);
+      // Hard timeout so the blocking read below cannot hang the EDT forever when the
+      // legacy lizzieyzy.cn service is unreachable/unresponsive.
+      try {
+        socket.setSoTimeout(15000);
+      } catch (Exception ignored) {
+      }
       // System.out.println("Socket=" + socket);
       // 同服务器原理一样
       br = new BufferedReader(new InputStreamReader(socket.getInputStream(), "utf-8"));

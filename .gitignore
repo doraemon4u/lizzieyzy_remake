@@ -1,0 +1,40 @@
+# --- Build artifacts ---
+target/
+dependency-reduced-pom.xml
+
+# --- Maven ---
+.mvn/timing.properties
+
+# --- IDE ---
+.settings/
+.classpath
+.project
+*.iml
+.idea/
+*.ipr
+*.iws
+
+# --- Logs / runtime ---
+*.log
+LastConsoleLogs_*.txt
+LastErrorLogs_*.txt
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Lizzie runtime artifacts ---
+config.txt
+persist
+save/
+jcef-bundle/
+foxReq/
+readboard/
+readboard_java/
+captureTsumeGo/
+clockHelper/
+*.jar.tmp
+
+# --- Git ---
+*.orig
+*.rej

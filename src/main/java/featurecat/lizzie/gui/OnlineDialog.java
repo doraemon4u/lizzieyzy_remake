@@ -438,7 +438,10 @@ public class OnlineDialog extends JDialog {
     switch (type) {
       case 1:
       case 5:
-        req2(true);
+        // Yike v1 golive/dtl still works anonymously and returns live SGF.
+        // The legacy socket.io channel (https://rtgame.yikeweiqi.com) is dead;
+        // fall back to HttpURLConnection polling with parseSgf JSON handling.
+        refresh(null, 2, true, false);
         break;
       case 2:
         refresh("(?s).*?(\\\"Content\\\":\\\")(.+)(\\\",\\\")(?s).*");
@@ -609,7 +612,10 @@ public class OnlineDialog extends JDialog {
           }
         });
 
-    if (needSchedule && !isStoped && type == 101) { // 弈客暂时不需要刷新了
+    // Enable periodic polling for Yike live rooms (1/5) as well as generic (101).
+    // The v1 golive/dtl endpoint keeps returning updated SGF, so polling is the
+    // reliable low-latency path now that the realtime socket.io channel is gone.
+    if (needSchedule && !isStoped && (type == 1 || type == 5 || type == 101)) {
       timer =
           new Timer(
               refreshTime * 1000,

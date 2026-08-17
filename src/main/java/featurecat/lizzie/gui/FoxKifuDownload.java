@@ -29,6 +29,7 @@ import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -46,6 +47,14 @@ public class FoxKifuDownload extends JFrame {
   private JTable table;
   private JScrollPane scrollPane;
   private JTextField txtUserName;
+  private JPasswordField txtPassword;
+  /** User whose games we want to browse (searched by UID). Distinct from the login account. */
+  private JTextField txtSearchUser;
+  /** Optional manually-captured FoxWQ token (from web devtools). Empty => use login token. */
+  private JTextField txtToken;
+  /** Required manually-captured FoxWQ session (cannot be derived from login). */
+  private JTextField txtSession;
+
   public GetFoxRequest foxReq;
   private List<KifuInfo> foxKifuInfos;
   private int myUid;
@@ -91,6 +100,62 @@ public class FoxKifuDownload extends JFrame {
           }
         });
     txtUserName.setText(Lizzie.config.lastFoxName);
+
+    JLabel lblPassword =
+        new JFontLabel(Lizzie.resourceBundle.getString("FoxKifuDownload.lblPassword"));
+    panel.add(lblPassword);
+
+    txtPassword = new JPasswordField();
+    panel.add(txtPassword);
+    txtPassword.setColumns(10);
+    txtPassword.addKeyListener(
+        new KeyAdapter() {
+          public void keyPressed(KeyEvent e) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+              getFoxKifus();
+            }
+          }
+        });
+    if (!Lizzie.config.lastFoxPasswordMd5.isEmpty()) {
+      // pre-fill a placeholder so the stored hash is reused if the user does not retype
+      txtPassword.setText("********");
+    }
+
+    // Target account whose games we browse (searched by UID). This is the "unique keyword
+    // username" the user wants to query — it may differ from the login account.
+    JLabel lblSearchUser =
+        new JFontLabel(Lizzie.resourceBundle.getString("FoxKifuDownload.lblSearchUser"));
+    panel.add(lblSearchUser);
+
+    txtSearchUser = new JFontTextField();
+    panel.add(txtSearchUser);
+    txtSearchUser.setColumns(10);
+    txtSearchUser.addKeyListener(
+        new KeyAdapter() {
+          public void keyPressed(KeyEvent e) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+              getFoxKifus();
+            }
+          }
+        });
+    txtSearchUser.setText(Lizzie.config.lastFoxSearchUser);
+
+    // --- Optional manual FoxWQ credentials (needed because session cannot be derived from login)
+    // ---
+    JLabel lblToken = new JFontLabel(Lizzie.resourceBundle.getString("FoxKifuDownload.lblToken"));
+    panel.add(lblToken);
+    txtToken = new JFontTextField();
+    txtToken.setColumns(18);
+    panel.add(txtToken);
+    txtToken.setText(Lizzie.config.lastFoxToken);
+
+    JLabel lblSession =
+        new JFontLabel(Lizzie.resourceBundle.getString("FoxKifuDownload.lblSession"));
+    panel.add(lblSession);
+    txtSession = new JFontTextField();
+    txtSession.setColumns(18);
+    panel.add(txtSession);
+    txtSession.setText(Lizzie.config.lastFoxSession);
 
     JButton btnSearch =
         new JFontButton(Lizzie.resourceBundle.getString("FoxKifuDownload.btnSearch"));
@@ -257,8 +322,9 @@ public class FoxKifuDownload extends JFrame {
       String last = foxKifuInfos.get(foxKifuInfos.size() - 1).chessid;
       if (!lastCode.equals(last)) {
         lastCode = last;
+        long pageUid = foxReq.getCurrentDstUid() > 0 ? foxReq.getCurrentDstUid() : this.myUid;
         this.foxReq.sendCommand(
-            "uid " + this.myUid + " " + foxKifuInfos.get(foxKifuInfos.size() - 1).chessid);
+            "uid " + pageUid + " " + foxKifuInfos.get(foxKifuInfos.size() - 1).chessid);
       } else {
         if (curTabNumber == tabNumber) {
           if (isSecondTimeReqEmpty)
@@ -272,10 +338,17 @@ public class FoxKifuDownload extends JFrame {
   }
 
   private void getFoxKifus() {
-    // TODO Auto-generated method stub
+    // Login account is required to obtain a valid FoxWQ session token.
     if (txtUserName.getText().trim().isEmpty()) {
-      Utils.showMsg(Lizzie.resourceBundle.getString("FoxKifuDownload.noUser"), this);
+      Utils.showMsg(Lizzie.resourceBundle.getString("FoxKifuDownload.noLoginUser"), this);
       return;
+    }
+    // The account whose games we browse. Defaults to the login account, but can be any
+    // username (the "unique keyword" used to search that user's games by uid).
+    String searchTarget = txtSearchUser.getText().trim();
+    if (searchTarget.isEmpty()) {
+      searchTarget = txtUserName.getText().trim();
+      txtSearchUser.setText(searchTarget);
     }
     if (isSearching) {
       Utils.showMsg(Lizzie.resourceBundle.getString("FoxKifuDownload.waitLastSearch"), this);
@@ -285,12 +358,51 @@ public class FoxKifuDownload extends JFrame {
     isSearching = true;
     isSecondTimeReqEmpty = false;
     isRequestEmpty = false;
+    if (foxReq != null) foxReq.shutdown();
     foxReq = new GetFoxRequest(this);
     foxKifuInfos = new ArrayList<KifuInfo>();
     lastCode = "";
-    Lizzie.config.lastFoxName = txtUserName.getText();
-    foxReq.sendCommand("user_name " + Lizzie.config.lastFoxName);
-    Lizzie.config.uiConfig.put("last-fox-name", Lizzie.config.lastFoxName);
+    String name = txtUserName.getText().trim();
+    Lizzie.config.lastFoxName = name;
+    Lizzie.config.uiConfig.put("last-fox-name", name);
+    Lizzie.config.lastFoxSearchUser = searchTarget;
+    Lizzie.config.uiConfig.put("last-fox-search-user", searchTarget);
+
+    // Resolve: reuse the stored MD5 when the password field still holds the placeholder;
+    // otherwise hash the freshly typed password and remember it for next time.
+    boolean usingPlaceholder =
+        txtPassword.getPassword() != null
+            && new String(txtPassword.getPassword()).equals("********");
+    String passwordMd5;
+    if (usingPlaceholder && !Lizzie.config.lastFoxPasswordMd5.isEmpty()) {
+      passwordMd5 = Lizzie.config.lastFoxPasswordMd5;
+    } else {
+      String typed = txtPassword.getPassword() != null ? new String(txtPassword.getPassword()) : "";
+      passwordMd5 = featurecat.lizzie.analysis.FoxApi.md5(typed);
+      if (!typed.isEmpty()) {
+        Lizzie.config.lastFoxPasswordMd5 = passwordMd5;
+        Lizzie.config.uiConfig.put("last-fox-password-md5", passwordMd5);
+      }
+    }
+
+    // Manual token/session (from FoxWQ web devtools) take precedence and are persisted.
+    String manualToken = txtToken.getText() != null ? txtToken.getText().trim() : "";
+    String manualSession = txtSession.getText() != null ? txtSession.getText().trim() : "";
+    if (manualToken.isEmpty()) manualToken = Lizzie.config.lastFoxToken;
+    if (manualSession.isEmpty()) manualSession = Lizzie.config.lastFoxSession;
+    if (!manualToken.isEmpty()) {
+      Lizzie.config.lastFoxToken = manualToken;
+      Lizzie.config.uiConfig.put("last-fox-token", manualToken);
+    }
+    if (!manualSession.isEmpty()) {
+      Lizzie.config.lastFoxSession = manualSession;
+      Lizzie.config.uiConfig.put("last-fox-session", manualSession);
+    }
+    if (!manualSession.isEmpty()) {
+      foxReq.setManualCredentials(manualToken, manualSession, name);
+    }
+
+    foxReq.startSearch(name, passwordMd5, searchTarget);
   }
 
   class UserInfo {
